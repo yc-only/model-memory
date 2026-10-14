@@ -34,12 +34,18 @@ MEMORY_TEMPLATE = """# {name}
 
 
 def create_skeleton(name):
+    """Ensure content/ exists. Write memory.md only when it is absent.
+
+    Returns True when the template was written.
+    """
     directory = common.memory_dir(name)
     os.makedirs(os.path.join(directory, "content"), exist_ok=True)
     memory_path = os.path.join(directory, "memory.md")
-    if not os.path.exists(memory_path):
-        with open(memory_path, "w", encoding="utf-8", newline="\n") as handle:
-            handle.write(MEMORY_TEMPLATE.format(name=name))
+    if os.path.exists(memory_path):
+        return False
+    with open(memory_path, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(MEMORY_TEMPLATE.format(name=name))
+    return True
 
 
 def upsert(args):
@@ -68,7 +74,8 @@ def upsert(args):
         }
         directory = common.memory_dir(name)
         existed = os.path.isdir(directory)
-        create_skeleton(name)
+        memory_existed = os.path.isfile(os.path.join(directory, "memory.md"))
+        skeleton_created = create_skeleton(name)
         try:
             entries, warnings = common.fingerprint_entries(entry)
             if warnings:
@@ -81,7 +88,14 @@ def upsert(args):
             if not existed and not saved:
                 shutil.rmtree(directory, ignore_errors=True)
             raise
-        return {"ok": True, "action": "created", "module": entry, "verification": digest}
+        return {
+            "ok": True,
+            "action": "created",
+            "module": entry,
+            "verification": digest,
+            "memory_existed": memory_existed,
+            "skeleton_created": skeleton_created,
+        }
 
     if args.desc:
         existing["desc"] = args.desc.strip()

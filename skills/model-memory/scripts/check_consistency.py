@@ -34,13 +34,19 @@ def check(name, write):
             raise common.MemoryError("；".join(warnings))
         rewritten = not stored_match
         written = common.write_verification(directory, current) if rewritten else recorded
-        return {
+        result = {
             "ok": True,
             "module": module_name,
             "rewritten": rewritten,
             "written": written,
             "file_count": len(current),
         }
+        if rewritten:
+            if recorded is not None:
+                result["previous"] = recorded
+        else:
+            result["reason"] = "already_consistent"
+        return result
 
     result = {
         "ok": True,

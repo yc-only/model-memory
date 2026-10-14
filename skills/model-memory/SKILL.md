@@ -57,7 +57,7 @@ python .agents/skills/model-memory/scripts/check_consistency.py --module "<modul
 python .agents/skills/model-memory/scripts/check_consistency.py --module "<module-name>" --write
 ```
 
-看 `rewritten` 判断是否写入。`TRUE` / `FALSE` 只出现在不带 `--write` 的检查里。
+看 `rewritten` 判断是否写入。`false` 时只接受 `reason: already_consistent`（原指纹已含当前正文，不必再查脚本）；没有该字段则停止并报告。`TRUE` / `FALSE` 只出现在不带 `--write` 的检查里。
 
 ## 阶段 3：一轮任务结束
 
