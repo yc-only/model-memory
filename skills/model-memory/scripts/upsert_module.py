@@ -9,7 +9,6 @@ Usage:
 
 import argparse
 import os
-import shutil
 
 import _common as common
 
@@ -26,10 +25,6 @@ MEMORY_TEMPLATE = """# {name}
 
 ## 已知问题
 - 待补充。
-
-## 置信状态
-- 当前：low
-- 上次校验：未校验
 """
 
 
@@ -50,7 +45,14 @@ def create_skeleton(name):
 
 def upsert(args):
     name = common.validate_name(args.name)
-    index = common.load_index(create=True)
+    creating = False
+    try:
+        index = common.load_index(create=False)
+    except common.MemoryError:
+        if args.remove or not args.desc or not args.source_root:
+            raise
+        creating = True
+        index = {"models": []}
     existing = common.find_model(index, name)
 
     if args.remove:
@@ -72,27 +74,17 @@ def upsert(args):
             "source_roots": roots,
             "memory_path": "./%s" % name,
         }
-        directory = common.memory_dir(name)
-        existed = os.path.isdir(directory)
-        memory_existed = os.path.isfile(os.path.join(directory, "memory.md"))
+        memory_existed = os.path.isfile(os.path.join(common.memory_dir(name), "memory.md"))
         skeleton_created = create_skeleton(name)
-        try:
-            entries, warnings = common.fingerprint_entries(entry)
-            if warnings:
-                raise common.MemoryError("；".join(warnings))
-            index["models"].append(entry)
-            common.save_index(index)
-            digest = common.write_verification(directory, entries)
-        except Exception:
-            saved = common.find_model(common.load_index(), name) is not None
-            if not existed and not saved:
-                shutil.rmtree(directory, ignore_errors=True)
-            raise
+        if creating:
+            common.save_index({"models": []})
+            index = common.load_index(create=False)
+        index["models"].append(entry)
+        common.save_index(index)
         return {
             "ok": True,
             "action": "created",
             "module": entry,
-            "verification": digest,
             "memory_existed": memory_existed,
             "skeleton_created": skeleton_created,
         }
@@ -107,7 +99,7 @@ def upsert(args):
     if not args.desc and not args.source_root:
         raise common.MemoryError("更新时至少提供 --desc 或 --source-root")
     common.save_index(index)
-    return {"ok": True, "action": "updated", "module": existing, "verification_rewritten": False}
+    return {"ok": True, "action": "updated", "module": existing}
 
 
 def main():
